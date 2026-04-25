@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>E. coli — Микробиология AR</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Manrope:wght@300;400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root {
+    --bg: #03060d;
+    --surface: #08111f;
+    --panel: #0c1a2e;
+    --border: rgba(0,220,150,0.15);
+    --accent: #00dc96;
+    --accent2: #00b4ff;
+    --accent3: #ff6b35;
+    --text: #e8f4f0;
+    --muted: #5a7a6a;
+    --glow: 0 0 20px rgba(0,220,150,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,220,150,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,220,150,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page-wrap { position: relative; z-index: 1; }
+
+  /* ── HEADER ── */
+  header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: linear-gradient(180deg, rgba(0,220,150,0.06) 0%, transparent 100%);
+  }
+
+  .logo-dot {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #00dc96, #004d34);
+    box-shadow: 0 0 16px rgba(0,220,150,0.6), 0 0 40px rgba(0,220,150,0.2);
+    flex-shrink: 0;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 16px rgba(0,220,150,0.6), 0 0 40px rgba(0,220,150,0.2); }
+    50%      { box-shadow: 0 0 24px rgba(0,220,150,0.9), 0 0 60px rgba(0,220,150,0.35); }
+  }
+
+  .header-text h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.05rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+  }
+
+  .header-text p {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .badge {
+    margin-left: auto;
+    background: rgba(0,220,150,0.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    padding: 12px 20px 0;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    padding: 8px 16px;
+    border-radius: 8px 8px 0 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    color: var(--muted);
+    background: transparent;
+    transition: all 0.25s;
+    text-transform: uppercase;
+  }
+
+  .tab.active {
+    color: var(--accent);
+    background: var(--panel);
+    border-color: var(--border);
+    border-bottom-color: var(--panel);
+  }
+
+  .tab:not(.active):hover { color: var(--text); }
+
+  /* ── 3D CANVAS SECTION ── */
+  .viewer-section {
+    position: relative;
+    height: 340px;
+    background: radial-gradient(ellipse at center, #071a2e 0%, var(--bg) 70%);
+    overflow: hidden;
+  }
+
+  #canvas3d {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    touch-action: none;
+  }
+
+  /* Labels overlay */
+  #labels-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .label3d {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    background: rgba(3,6,13,0.82);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    letter-spacing: 0.05em;
+  }
+
+  .label3d::before {
+    content: '';
+    position: absolute;
+    width: 4px; height: 4px;
+    background: var(--accent);
+    border-radius: 50%;
+    top: 50%; left: -8px;
+    transform: translateY(-50%);
+  }
+
+  /* Controls hint */
+  .controls-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    font-family: 'Space Mono', monospace;
+    pointer-events: none;
+  }
+
+  /* Rotate icon */
+  .view-controls {
+    position: absolute;
+    top: 10px; right: 10px;
+    display: flex; gap: 6px;
+  }
+
+  .view-btn {
+    width: 32px; height: 32px;
+    background: rgba(0,220,150,0.08);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 0.8rem;
+    transition: background 0.2s;
+  }
+
+  .view-btn:hover { background: rgba(0,220,150,0.18); }
+
+  /* ── INFO PANEL ── */
+  .info-panel {
+    padding: 16px 20px;
+  }
+
+  /* Taxonomy strip */
+  .taxon-strip {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .taxon-chip {
+    font-size: 0.65rem;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.06em;
+  }
+
+  .taxon-chip.domain  { color: #ff6b35; border-color: rgba(255,107,53,0.4); background: rgba(255,107,53,0.07); }
+  .taxon-chip.phylum  { color: #00b4ff; border-color: rgba(0,180,255,0.4); background: rgba(0,180,255,0.07); }
+  .taxon-chip.class   { color: #c084fc; border-color: rgba(192,132,252,0.4); background: rgba(192,132,252,0.07); }
+  .taxon-chip.species { color: var(--accent); border-color: rgba(0,220,150,0.4); background: rgba(0,220,150,0.07); }
+
+  /* Stat grid */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+
+  .stat-card .label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+
+  .stat-card .value {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .stat-card .value em {
+    color: var(--accent);
+    font-style: normal;
+    font-weight: 700;
+  }
+
+  /* Structures list */
+  .section-title {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .struct-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .struct-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .struct-item:hover, .struct-item.active {
+    border-color: var(--accent);
+    background: rgba(0,220,150,0.06);
+  }
+
+  .struct-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+
+  .struct-name {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text);
+  }
+
+  .struct-desc {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 1px;
+    line-height: 1.4;
+  }
+
+  /* Medium info */
+  .medium-card {
+    background: var(--panel);
+    border: 1px solid rgba(0,180,255,0.2);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+
+  .medium-card h3 {
+    font-size: 0.85rem;
+    color: var(--accent2);
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 8px;
+  }
+
+  .medium-card p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .medium-card .colony-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid rgba(0,180,255,0.3);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    color: var(--accent2);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .colony-dot-badge {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #00ff88, #006633);
+    box-shadow: 0 0 6px #00ff88;
+  }
+
+  /* Hidden tab panels */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 0.62rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.08em;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    bottom: 360px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    padding: 6px 14px;
+    border-radius: 6px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 100;
+    white-space: nowrap;
+  }
+
+  #tooltip.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<!-- HEADER -->
+<header>
+  <div class="logo-dot"></div>
+  <div class="header-text">
+    <h1>Escherichia coli</h1>
+    <p>Микробиология · 3D Атлас</p>
+  </div>
+  <div class="badge">ПРОТОТИП v1</div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('morphology', this)">⬡ Морфология</button>
+  <button class="tab" onclick="switchTab('medium', this)">⬡ Питательная среда</button>
+  <button class="tab" onclick="switchTab('info', this)">⬡ Информация</button>
+</div>
+
+<!-- 3D VIEWER -->
+<div class="viewer-section">
+  <canvas id="canvas3d"></canvas>
+  <div id="labels-overlay"></div>
+  <div class="view-controls">
+    <div class="view-btn" onclick="resetCamera()" title="Сбросить">↺</div>
+    <div class="view-btn" onclick="toggleLabels()" title="Подписи">⊞</div>
+  </div>
+  <div class="controls-hint">◉ Вращайте · Масштабируйте</div>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- INFO PANELS -->
+<div class="info-panel">
+
+  <!-- MORPHOLOGY PANEL -->
+  <div class="tab-panel active" id="panel-morphology">
+    <div class="taxon-strip">
+      <span class="taxon-chip domain">Bacteria</span>
+      <span class="taxon-chip phylum">Pseudomonadota</span>
+      <span class="taxon-chip class">Gammaproteobacteria</span>
+      <span class="taxon-chip species">E. coli</span>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="label">Форма</div>
+        <div class="value"><em>Палочка</em> (бацилла)</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Размер</div>
+        <div class="value"><em>1–3 мкм</em> × 0.4–0.7 мкм</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">По Граму</div>
+        <div class="value"><em>Грам−</em> (отрицательная)</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Подвижность</div>
+        <div class="value">Перитрихи <em>жгутики</em></div>
+      </div>
+    </div>
+
+    <div class="section-title">Структуры клетки</div>
+    <div class="struct-list" id="struct-list">
+      <div class="struct-item" onclick="highlightPart('nucleoid')">
+        <div class="struct-dot" style="background:#ff6b35"></div>
+        <div>
+          <div class="struct-name">Нуклеоид</div>
+          <div class="struct-desc">Кольцевая хромосома ДНК (~4,6 Мб), не отделена мембраной от цитоплазмы</div>
+        </div>
+      </div>
+      <div class="struct-item" onclick="highlightPart('ribosome')">
+        <div class="struct-dot" style="background:#ffd700"></div>
+        <div>
+          <div class="struct-name">Рибосомы</div>
+          <div class="struct-desc">Тип 70S (50S + 30S). ~15 000–20 000 на клетку. Синтез белка</div>
+        </div>
+      </div>
+      <div class="struct-item" onclick="highlightPart('outermembrane')">
+        <div class="struct-dot" style="background:#00dc96"></div>
+        <div>
+          <div class="struct-name">Наружная мембрана</div>
+          <div class="struct-desc">Липополисахаридный (ЛПС) слой — уникален для Грам− бактерий, эндотоксин</div>
+        </div>
+      </div>
+      <div class="struct-item" onclick="highlightPart('periplasm')">
+        <div class="struct-dot" style="background:#00b4ff"></div>
+        <div>
+          <div class="struct-name">Периплазматическое пространство</div>
+          <div class="struct-desc">Содержит пептидогликановую клеточную стенку и периплазматические белки</div>
+        </div>
+      </div>
+      <div class="struct-item" onclick="highlightPart('innermembrane')">
+        <div class="struct-dot" style="background:#c084fc"></div>
+        <div>
+          <div class="struct-name">Внутренняя мембрана</div>
+          <div class="struct-desc">Фосфолипидный бислой. АТФ-синтаза, транспорт веществ</div>
+        </div>
+      </div>
+      <div class="struct-item" onclick="highlightPart('flagella')">
+        <div class="struct-dot" style="background:#ff4d8a"></div>
+        <div>
+          <div class="struct-name">Жгутики</div>
+          <div class="struct-desc">Перитрихальные, построены из флагеллина. Скорость до 30 мкм/с</div>
+        </div>
+      </div>
+      <div class="struct-item" onclick="highlightPart('pili')">
+        <div class="struct-dot" style="background:#f59e0b"></div>
+        <div>
+          <div class="struct-name">Пили (фимбрии)</div>
+          <div class="struct-desc">Адгезия к клеткам-хозяевам и поверхностям. F-пили — конъюгация</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEDIUM PANEL -->
+  <div class="tab-panel" id="panel-medium">
+    <div class="section-title">Питательные среды E. coli</div>
+
+    <div class="medium-card">
+      <h3>Агар Эндо (среда Эндо)</h3>
+      <p>Дифференциально-диагностическая среда. E. coli ферментирует лактозу → альдегиды реагируют с фуксином → образует характерные <strong style="color:#00dc96">тёмно-красные колонии с металлическим зелёным блеском</strong>.</p>
+      <div class="colony-badge">
+        <div class="colony-dot-badge"></div>
+        Металлический зелёный блеск — диагностический признак
+      </div>
+    </div>
+
+    <div class="medium-card">
+      <h3>EMB агар (эозин-метиленовый синий)</h3>
+      <p>Колонии E. coli дают <strong style="color:#00dc96">зелёный металлический блеск</strong> из-за кислотопродукции. Ингибирует рост Грам+ микробов.</p>
+    </div>
+
+    <div class="medium-card">
+      <h3>МПА (мясо-пептонный агар)</h3>
+      <p>Неселективная среда. Колонии <strong style="color:#e8f4f0">серовато-белые</strong>, гладкие, 2–3 мм, влажные, с ровным краем (S-форма). Оптимум роста: <strong style="color:#00dc96">37°C</strong>, pH 7.2–7.4.</p>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="label">Температура</div>
+        <div class="value"><em>37°C</em> оптимум</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Время роста</div>
+        <div class="value"><em>18–24 ч</em> инкубация</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">pH среды</div>
+        <div class="value"><em>7.2–7.4</em></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Размер колоний</div>
+        <div class="value"><em>2–3 мм</em> диаметр</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO PANEL -->
+  <div class="tab-panel" id="panel-info">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="label">Тип дыхания</div>
+        <div class="value"><em>Факультативный</em> анаэроб</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Спорообразование</div>
+        <div class="value"><em>Нет</em> — аспорогенная</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Капсула</div>
+        <div class="value"><em>Некоторые</em> штаммы K-антиген</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Открыта</div>
+        <div class="value"><em>1885</em> Теодор Эшерих</div>
+      </div>
+    </div>
+
+    <div class="section-title">Клиническое значение</div>
+    <div class="struct-list">
+      <div class="struct-item">
+        <div class="struct-dot" style="background:#ff4d4d"></div>
+        <div>
+          <div class="struct-name">ЭТКП / ЭПКП / ЭГКП</div>
+          <div class="struct-desc">Патогенные штаммы вызывают диарею, гемолитико-уремический синдром (О157:H7)</div>
+        </div>
+      </div>
+      <div class="struct-item">
+        <div class="struct-dot" style="background:#00dc96"></div>
+        <div>
+          <div class="struct-name">Нормальная микрофлора</div>
+          <div class="struct-desc">Основной представитель кишечной микробиоты, синтезирует витамин K2</div>
+        </div>
+      </div>
+      <div class="struct-item">
+        <div class="struct-dot" style="background:#00b4ff"></div>
+        <div>
+          <div class="struct-name">Модельный организм</div>
+          <div class="struct-desc">Наиболее изученная бактерия. Основа биотехнологии, синтез инсулина</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Антигенная структура</div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="label">О-антиген</div>
+        <div class="value">Соматический <em>ЛПС</em>. 171 серогруппа</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">H-антиген</div>
+        <div class="value">Жгутиковый. <em>56 типов</em></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">K-антиген</div>
+        <div class="value">Капсульный. <em>80 вариантов</em></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">F-антиген</div>
+        <div class="value">Фимбриальный — <em>адгезия</em></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /info-panel -->
+
+<footer>КазНМУ · Кафедра Микробиологии · AR Атлас v1.0</footer>
+</div><!-- /page-wrap -->
+
+<script>
+// ──────────────────────────────────────────────
+// THREE.JS SETUP
+// ──────────────────────────────────────────────
+const canvas = document.getElementById('canvas3d');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+camera.position.set(0, 0.5, 4.5);
+
+function resizeRenderer() {
+  const parent = canvas.parentElement;
+  const w = parent.clientWidth;
+  const h = parent.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resizeRenderer();
+window.addEventListener('resize', resizeRenderer);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0x0a1a10, 1.5);
+scene.add(ambientLight);
+
+const pointLight1 = new THREE.PointLight(0x00dc96, 2.5, 20);
+pointLight1.position.set(3, 2, 3);
+scene.add(pointLight1);
+
+const pointLight2 = new THREE.PointLight(0x0066ff, 1.5, 20);
+pointLight2.position.set(-3, -1, 2);
+scene.add(pointLight2);
+
+const rimLight = new THREE.PointLight(0x00b4ff, 1.0, 15);
+rimLight.position.set(0, -3, -2);
+scene.add(rimLight);
+
+// ──────────────────────────────────────────────
+// GROUPS
+// ──────────────────────────────────────────────
+const ecoliGroup = new THREE.Group();
+const mediumGroup = new THREE.Group();
+scene.add(ecoliGroup);
+scene.add(mediumGroup);
+mediumGroup.visible = false;
+
+// ──────────────────────────────────────────────
+// HELPER: Capsule (sphere + cylinder + sphere)
+// ──────────────────────────────────────────────
+function makeCapsule(radiusTop, radiusBottom, height, segments, material) {
+  const group = new THREE.Group();
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), material);
+  group.add(cyl);
+  const sphereTop = new THREE.Mesh(new THREE.SphereGeometry(radiusTop, segments, segments), material);
+  sphereTop.position.y = height / 2;
+  group.add(sphereTop);
+  const sphereBot = new THREE.Mesh(new THREE.SphereGeometry(radiusBottom, segments, segments), material);
+  sphereBot.position.y = -height / 2;
+  group.add(sphereBot);
+  return group;
+}
+
+// ──────────────────────────────────────────────
+// E. COLI CELL
+// ──────────────────────────────────────────────
+const CELL_LEN = 1.6;
+const CELL_R = 0.28;
+
+// Outer membrane (transparent greenish)
+const outerMatColor = 0x00dc96;
+const outerMat = new THREE.MeshPhysicalMaterial({
+  color: outerMatColor,
+  transparent: true,
+  opacity: 0.18,
+  roughness: 0.1,
+  metalness: 0.0,
+  transmission: 0.5,
+  side: THREE.FrontSide,
+  depthWrite: false,
+});
+const outerMembrane = makeCapsule(CELL_R + 0.04, CELL_R + 0.04, CELL_LEN, 40, outerMat);
+outerMembrane.rotation.z = Math.PI / 2;
+outerMembrane.userData.partId = 'outermembrane';
+ecoliGroup.add(outerMembrane);
+
+// LPS wireframe ring overlay
+const lpsWireGeo = new THREE.CylinderGeometry(CELL_R + 0.05, CELL_R + 0.05, CELL_LEN, 40, 1, true);
+const lpsWire = new THREE.Mesh(lpsWireGeo, new THREE.MeshBasicMaterial({
+  color: 0x00ff99, wireframe: true, transparent: true, opacity: 0.08
+}));
+lpsWire.rotation.z = Math.PI / 2;
+ecoliGroup.add(lpsWire);
+
+// Periplasm (blue tint)
+const periplassMat = new THREE.MeshPhysicalMaterial({
+  color: 0x004488,
+  transparent: true,
+  opacity: 0.35,
+  roughness: 0.3,
+  depthWrite: false,
+});
+const periplasm = makeCapsule(CELL_R + 0.01, CELL_R + 0.01, CELL_LEN, 40, periplassMat);
+periplasm.rotation.z = Math.PI / 2;
+periplasm.userData.partId = 'periplasm';
+ecoliGroup.add(periplasm);
+
+// Inner membrane
+const innerMemMat = new THREE.MeshPhysicalMaterial({
+  color: 0x9933ff,
+  transparent: true,
+  opacity: 0.40,
+  roughness: 0.2,
+  depthWrite: false,
+});
+const innerMem = makeCapsule(CELL_R - 0.03, CELL_R - 0.03, CELL_LEN, 40, innerMemMat);
+innerMem.rotation.z = Math.PI / 2;
+innerMem.userData.partId = 'innermembrane';
+ecoliGroup.add(innerMem);
+
+// Cytoplasm (body fill)
+const cytoMat = new THREE.MeshPhysicalMaterial({
+  color: 0x012a18,
+  transparent: true,
+  opacity: 0.85,
+  roughness: 0.5,
+  depthWrite: true,
+});
+const cyto = makeCapsule(CELL_R - 0.06, CELL_R - 0.06, CELL_LEN, 40, cytoMat);
+cyto.rotation.z = Math.PI / 2;
+ecoliGroup.add(cyto);
+
+// Nucleoid (orange ellipsoid)
+const nucleoidGeo = new THREE.SphereGeometry(0.16, 32, 32);
+const nucleoidMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff5500,
+  emissive: 0x441100,
+  roughness: 0.3,
+  metalness: 0.1,
+  transparent: true,
+  opacity: 0.9,
+});
+const nucleoid = new THREE.Mesh(nucleoidGeo, nucleoidMat);
+nucleoid.scale.set(2.0, 0.8, 0.8);
+nucleoid.userData.partId = 'nucleoid';
+ecoliGroup.add(nucleoid);
+
+// Ribosomes (small yellow dots scattered)
+const riboGeo = new THREE.SphereGeometry(0.022, 8, 8);
+const riboMat = new THREE.MeshPhysicalMaterial({ color: 0xffd700, emissive: 0x443300, roughness: 0.2 });
+const riboGroup = new THREE.Group();
+riboGroup.userData.partId = 'ribosome';
+const rng = (min, max) => min + Math.random() * (max - min);
+for (let i = 0; i < 60; i++) {
+  const ribo = new THREE.Mesh(riboGeo, riboMat);
+  let x, y, z;
+  do {
+    x = rng(-0.7, 0.7);
+    y = rng(-0.15, 0.15);
+    z = rng(-0.15, 0.15);
+  } while (Math.sqrt(y*y + z*z) > 0.17);
+  ribo.position.set(x, y, z);
+  riboGroup.add(ribo);
+}
+ecoliGroup.add(riboGroup);
+
+// ── FLAGELLA (wavy tubes) ──
+function makeFlagellum(startX, startY, side) {
+  const points = [];
+  const turns = 8;
+  const len = 2.2;
+  for (let t = 0; t <= 1; t += 0.01) {
+    const x = startX - t * len * side;
+    const y = startY + Math.sin(t * turns * Math.PI * 2) * 0.18 * (1 - t * 0.4);
+    const z = Math.cos(t * turns * Math.PI * 2) * 0.12 * (1 - t * 0.4);
+    points.push(new THREE.Vector3(x, y, z));
+  }
+  const curve = new THREE.CatmullRomCurve3(points);
+  const geo = new THREE.TubeGeometry(curve, 80, 0.008, 6, false);
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: 0xff4d8a, emissive: 0x330011,
+    roughness: 0.3, metalness: 0.1,
+  });
+  return new THREE.Mesh(geo, mat);
+}
+
+const flagellaGroup = new THREE.Group();
+flagellaGroup.userData.partId = 'flagella';
+// Multiple flagella from left end
+const flagPositions = [
+  [-0.85, 0.05, 1],  [-0.85, -0.07, 1],
+  [-0.85, 0.12, 1],  [-0.85, -0.02, 1],
+  [0.85, 0.05, -1],
+];
+flagPositions.forEach(([x, y, side]) => {
+  flagellaGroup.add(makeFlagellum(x, y, side));
+});
+ecoliGroup.add(flagellaGroup);
+
+// ── PILI (thin spikes) ──
+const piliGroup = new THREE.Group();
+piliGroup.userData.partId = 'pili';
+const piliMat = new THREE.MeshPhysicalMaterial({ color: 0xf59e0b, roughness: 0.4 });
+for (let i = 0; i < 22; i++) {
+  const angle = (i / 22) * Math.PI * 2;
+  const posX = Math.cos(angle * 2.3) * rng(0.3, 0.7);
+  const posY = (CELL_R + 0.06) * Math.sin(angle * 0.9);
+  const posZ = (CELL_R + 0.06) * Math.cos(angle * 0.9);
+  const piliLen = rng(0.12, 0.25);
+  const geo = new THREE.CylinderGeometry(0.005, 0.003, piliLen, 5);
+  const mesh = new THREE.Mesh(geo, piliMat);
+  mesh.position.set(posX, posY, posZ);
+  // Orient outward
+  const dir = new THREE.Vector3(0, posY, posZ).normalize();
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+  piliGroup.add(mesh);
+}
+ecoliGroup.add(piliGroup);
+
+// Store parts for highlighting
+const parts = {
+  nucleoid, ribosome: riboGroup,
+  outermembrane: outerMembrane, periplasm,
+  innermembrane: innerMem,
+  flagella: flagellaGroup, pili: piliGroup
+};
+
+const originalEmissives = {};
+Object.entries(parts).forEach(([k, obj]) => {
+  originalEmissives[k] = [];
+  obj.traverse(m => {
+    if (m.isMesh) {
+      originalEmissives[k].push(m.material.emissive ? m.material.emissive.getHex() : 0);
+    }
+  });
+});
+
+function highlightPart(partId) {
+  // Reset all
+  Object.entries(parts).forEach(([k, obj]) => {
+    let idx = 0;
+    obj.traverse(m => {
+      if (m.isMesh && m.material.emissive) {
+        m.material.emissive.setHex(originalEmissives[k][idx] || 0);
+        idx++;
+      }
+    });
+  });
+  document.querySelectorAll('.struct-item').forEach(el => el.classList.remove('active'));
+
+  if (partId && parts[partId]) {
+    parts[partId].traverse(m => {
+      if (m.isMesh && m.material.emissive) {
+        m.material.emissive.setHex(0x225522);
+      }
+    });
+    event && event.currentTarget && event.currentTarget.classList.add('active');
+  }
+}
+
+// ──────────────────────────────────────────────
+// PETRI DISH / MEDIUM SCENE
+// ──────────────────────────────────────────────
+// Dish (bottom)
+const dishGeo = new THREE.CylinderGeometry(1.8, 1.7, 0.15, 60);
+const dishMat = new THREE.MeshPhysicalMaterial({
+  color: 0x334455,
+  transparent: true, opacity: 0.7,
+  roughness: 0.1, metalness: 0.2,
+  transmission: 0.3,
+});
+const dish = new THREE.Mesh(dishGeo, dishMat);
+dish.position.y = -0.2;
+mediumGroup.add(dish);
+
+// Agar surface
+const agarGeo = new THREE.CylinderGeometry(1.72, 1.72, 0.08, 60);
+const agarMat = new THREE.MeshPhysicalMaterial({
+  color: 0xc8b878,
+  roughness: 0.6,
+  metalness: 0.0,
+  emissive: 0x221a00,
+});
+const agar = new THREE.Mesh(agarGeo, agarMat);
+agar.position.y = -0.08;
+mediumGroup.add(agar);
+
+// Dish rim
+const rimGeo = new THREE.TorusGeometry(1.75, 0.05, 8, 60);
+const rimMat = new THREE.MeshPhysicalMaterial({ color: 0x88aacc, transparent: true, opacity: 0.5, roughness: 0.1 });
+const rim = new THREE.Mesh(rimGeo, rimMat);
+rim.rotation.x = Math.PI / 2;
+rim.position.y = -0.0;
+mediumGroup.add(rim);
+
+// E. coli colonies (metallic green)
+const colonyPositions = [
+  [0,0], [0.5,0.3], [-0.4,0.5], [0.3,-0.6], [-0.6,-0.3],
+  [0.8,0.1], [-0.7,0.4], [0.1,0.8], [-0.2,-0.8], [0.6,-0.5],
+  [-0.9,0.1], [0.2,0.6], [-0.5,-0.6], [0.7,0.6], [-0.3,0.2],
+  [0.4,-0.2], [-0.1,0.4],
+];
+
+const colonyMat = new THREE.MeshPhysicalMaterial({
+  color: 0x003311,
+  emissive: 0x00ff44,
+  emissiveIntensity: 0.5,
+  roughness: 0.2,
+  metalness: 0.7,
+});
+
+colonyPositions.forEach(([cx, cz]) => {
+  const r = 0.05 + Math.random() * 0.12;
+  const h = 0.03 + Math.random() * 0.04;
+  const geo = new THREE.CylinderGeometry(r, r * 0.85, h, 20);
+  const m = new THREE.Mesh(geo, colonyMat);
+  m.position.set(cx, -0.04 + h/2, cz);
+  mediumGroup.add(m);
+
+  // Green metallic sheen on top (disk)
+  const topGeo = new THREE.CircleGeometry(r, 20);
+  const topMat = new THREE.MeshPhysicalMaterial({
+    color: 0x00ff88,
+    emissive: 0x00cc44,
+    emissiveIntensity: 0.7,
+    roughness: 0.0,
+    metalness: 1.0,
+  });
+  const top = new THREE.Mesh(topGeo, topMat);
+  top.rotation.x = -Math.PI / 2;
+  top.position.set(cx, -0.04 + h + 0.001, cz);
+  mediumGroup.add(top);
+});
+
+// Dish label - "Агар Эндо — E. coli" marker
+mediumGroup.rotation.x = -0.3;
+
+// ──────────────────────────────────────────────
+// LABELS
+// ──────────────────────────────────────────────
+let labelsVisible = true;
+const labelData = [
+  { id: 'nucleoid', text: 'Нуклеоид', pos: new THREE.Vector3(-0.1, 0.28, 0) },
+  { id: 'ribosome', text: 'Рибосомы', pos: new THREE.Vector3(0.5, 0.22, 0) },
+  { id: 'outermembrane', text: 'Нар. мембрана', pos: new THREE.Vector3(0, 0.36, 0) },
+  { id: 'innermembrane', text: 'Вн. мембрана', pos: new THREE.Vector3(0.0, -0.32, 0) },
+  { id: 'flagella', text: 'Жгутики', pos: new THREE.Vector3(-1.4, 0.25, 0) },
+  { id: 'pili', text: 'Пили', pos: new THREE.Vector3(0.8, -0.28, 0) },
+  { id: 'periplasm', text: 'Периплазма', pos: new THREE.Vector3(-0.6, 0.33, 0) },
+];
+
+const labelOverlay = document.getElementById('labels-overlay');
+const labelEls = {};
+labelData.forEach(ld => {
+  const el = document.createElement('div');
+  el.className = 'label3d';
+  el.textContent = ld.text;
+  labelOverlay.appendChild(el);
+  labelEls[ld.id] = { el, pos: ld.pos };
+});
+
+function updateLabels() {
+  if (!labelsVisible || !ecoliGroup.visible) {
+    Object.values(labelEls).forEach(({ el }) => el.style.opacity = '0');
+    return;
+  }
+  const rect = canvas.getBoundingClientRect();
+  Object.values(labelEls).forEach(({ el, pos }) => {
+    const wp = pos.clone().applyMatrix4(ecoliGroup.matrixWorld);
+    const ndc = wp.project(camera);
+    const x = (ndc.x * 0.5 + 0.5) * rect.width;
+    const y = (-ndc.y * 0.5 + 0.5) * rect.height;
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    el.style.opacity = (ndc.z < 1) ? '1' : '0';
+  });
+}
+
+function toggleLabels() {
+  labelsVisible = !labelsVisible;
+}
+
+// ──────────────────────────────────────────────
+// ORBIT CONTROLS (manual)
+// ──────────────────────────────────────────────
+let isDragging = false, prevX = 0, prevY = 0;
+let rotX = -0.2, rotY = 0;
+let targetRotX = -0.2, targetRotY = 0;
+let zoom = 4.5, targetZoom = 4.5;
+
+canvas.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+canvas.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  targetRotY += (e.clientX - prevX) * 0.012;
+  targetRotX += (e.clientY - prevY) * 0.008;
+  targetRotX = Math.max(-1.2, Math.min(1.2, targetRotX));
+  prevX = e.clientX; prevY = e.clientY;
+});
+canvas.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('mouseleave', () => isDragging = false);
+canvas.addEventListener('wheel', e => {
+  targetZoom = Math.max(2.5, Math.min(8, targetZoom + e.deltaY * 0.006));
+  e.preventDefault();
+}, { passive: false });
+
+// Touch
+let prevTouchDist = 0;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { isDragging = true; prevX = e.touches[0].clientX; prevY = e.touches[0].clientY; }
+  if (e.touches.length === 2) {
+    prevTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  }
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && isDragging) {
+    targetRotY += (e.touches[0].clientX - prevX) * 0.014;
+    targetRotX += (e.touches[0].clientY - prevY) * 0.010;
+    targetRotX = Math.max(-1.2, Math.min(1.2, targetRotX));
+    prevX = e.touches[0].clientX; prevY = e.touches[0].clientY;
+  }
+  if (e.touches.length === 2) {
+    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    targetZoom = Math.max(2.5, Math.min(8, targetZoom - (dist - prevTouchDist) * 0.01));
+    prevTouchDist = dist;
+  }
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', () => isDragging = false);
+
+function resetCamera() {
+  targetRotX = -0.2; targetRotY = 0; targetZoom = 4.5;
+}
+
+// ──────────────────────────────────────────────
+// TAB SWITCHING
+// ──────────────────────────────────────────────
+let currentTab = 'morphology';
+
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+
+  if (tab === 'medium') {
+    ecoliGroup.visible = false;
+    mediumGroup.visible = true;
+    targetZoom = 5.5;
+    targetRotX = -0.5;
+  } else {
+    ecoliGroup.visible = true;
+    mediumGroup.visible = false;
+    targetZoom = 4.5;
+    targetRotX = -0.2;
+    targetRotY = 0;
+  }
+}
+
+// ──────────────────────────────────────────────
+// ANIMATE
+// ──────────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // Smooth camera
+  rotX += (targetRotX - rotX) * 0.08;
+  rotY += (targetRotY - rotY) * 0.08;
+  zoom += (targetZoom - zoom) * 0.08;
+
+  camera.position.set(
+    Math.sin(rotY) * Math.cos(rotX) * zoom,
+    Math.sin(rotX) * zoom,
+    Math.cos(rotY) * Math.cos(rotX) * zoom
+  );
+  camera.lookAt(0, 0, 0);
+
+  // Gently rotate E. coli if not dragging
+  if (!isDragging && currentTab === 'morphology') {
+    ecoliGroup.rotation.y += 0.003;
+  }
+
+  // Animate flagella wave
+  flagellaGroup.children.forEach((f, i) => {
+    f.rotation.z = Math.sin(t * 3 + i * 0.8) * 0.06;
+  });
+
+  // Pulsing outer membrane
+  const pulse = 1 + Math.sin(t * 2) * 0.01;
+  outerMembrane.scale.set(pulse, pulse, pulse);
+
+  // Animate colony lights
+  if (mediumGroup.visible) {
+    mediumGroup.rotation.y += 0.003;
+  }
+
+  // Point light orbit
+  pointLight1.position.x = Math.cos(t * 0.5) * 4;
+  pointLight1.position.z = Math.sin(t * 0.5) * 4;
+
+  renderer.render(scene, camera);
+  updateLabels();
+}
+
+animate();
+</script>
+</body>
+</html>
