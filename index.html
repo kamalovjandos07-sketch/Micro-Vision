@@ -6,6 +6,9 @@
 <title>E. coli — Микробиология AR</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Manrope:wght@300;400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
 <style>
   :root {
     --bg: #03060d;
@@ -656,6 +659,13 @@
 // ──────────────────────────────────────────────
 // THREE.JS SETUP
 // ──────────────────────────────────────────────
+
+// ── FILE PATHS (измени если нужно под свой репозиторий) ──
+const MODEL_BACTERIA  = 'models/archaea/archaea.fbx';
+const MODEL_PETRI     = 'models/petri/petri.glb';
+const TEX_BACTERIA_COLOR  = 'models/archaea/textures/tt_Base_color.png';
+const TEX_BACTERIA_NORMAL = 'models/archaea/textures/tt_Normal_OpenGL.png';
+
 const canvas = document.getElementById('canvas3d');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -704,202 +714,56 @@ scene.add(mediumGroup);
 mediumGroup.visible = false;
 
 // ──────────────────────────────────────────────
-// HELPER: Capsule (sphere + cylinder + sphere)
+// LOADERS
 // ──────────────────────────────────────────────
-function makeCapsule(radiusTop, radiusBottom, height, segments, material) {
-  const group = new THREE.Group();
-  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), material);
-  group.add(cyl);
-  const sphereTop = new THREE.Mesh(new THREE.SphereGeometry(radiusTop, segments, segments), material);
-  sphereTop.position.y = height / 2;
-  group.add(sphereTop);
-  const sphereBot = new THREE.Mesh(new THREE.SphereGeometry(radiusBottom, segments, segments), material);
-  sphereBot.position.y = -height / 2;
-  group.add(sphereBot);
-  return group;
-}
+const gltfLoader = new THREE.GLTFLoader();
+const fbxLoader  = new THREE.FBXLoader();
+const texLoader  = new THREE.TextureLoader();
 
-// ──────────────────────────────────────────────
-// E. COLI CELL
-// ──────────────────────────────────────────────
-const CELL_LEN = 1.6;
-const CELL_R = 0.28;
-
-// Outer membrane (transparent greenish)
-const outerMatColor = 0x00dc96;
-const outerMat = new THREE.MeshPhysicalMaterial({
-  color: outerMatColor,
-  transparent: true,
-  opacity: 0.18,
-  roughness: 0.1,
-  metalness: 0.0,
-  transmission: 0.5,
-  side: THREE.FrontSide,
-  depthWrite: false,
-});
-const outerMembrane = makeCapsule(CELL_R + 0.04, CELL_R + 0.04, CELL_LEN, 40, outerMat);
-outerMembrane.rotation.z = Math.PI / 2;
-outerMembrane.userData.partId = 'outermembrane';
-ecoliGroup.add(outerMembrane);
-
-// LPS wireframe ring overlay
-const lpsWireGeo = new THREE.CylinderGeometry(CELL_R + 0.05, CELL_R + 0.05, CELL_LEN, 40, 1, true);
-const lpsWire = new THREE.Mesh(lpsWireGeo, new THREE.MeshBasicMaterial({
-  color: 0x00ff99, wireframe: true, transparent: true, opacity: 0.08
-}));
-lpsWire.rotation.z = Math.PI / 2;
-ecoliGroup.add(lpsWire);
-
-// Periplasm (blue tint)
-const periplassMat = new THREE.MeshPhysicalMaterial({
-  color: 0x004488,
-  transparent: true,
-  opacity: 0.35,
-  roughness: 0.3,
-  depthWrite: false,
-});
-const periplasm = makeCapsule(CELL_R + 0.01, CELL_R + 0.01, CELL_LEN, 40, periplassMat);
-periplasm.rotation.z = Math.PI / 2;
-periplasm.userData.partId = 'periplasm';
-ecoliGroup.add(periplasm);
-
-// Inner membrane
-const innerMemMat = new THREE.MeshPhysicalMaterial({
-  color: 0x9933ff,
-  transparent: true,
-  opacity: 0.40,
-  roughness: 0.2,
-  depthWrite: false,
-});
-const innerMem = makeCapsule(CELL_R - 0.03, CELL_R - 0.03, CELL_LEN, 40, innerMemMat);
-innerMem.rotation.z = Math.PI / 2;
-innerMem.userData.partId = 'innermembrane';
-ecoliGroup.add(innerMem);
-
-// Cytoplasm (body fill)
-const cytoMat = new THREE.MeshPhysicalMaterial({
-  color: 0x012a18,
-  transparent: true,
-  opacity: 0.85,
-  roughness: 0.5,
-  depthWrite: true,
-});
-const cyto = makeCapsule(CELL_R - 0.06, CELL_R - 0.06, CELL_LEN, 40, cytoMat);
-cyto.rotation.z = Math.PI / 2;
-ecoliGroup.add(cyto);
-
-// Nucleoid (orange ellipsoid)
-const nucleoidGeo = new THREE.SphereGeometry(0.16, 32, 32);
-const nucleoidMat = new THREE.MeshPhysicalMaterial({
-  color: 0xff5500,
-  emissive: 0x441100,
-  roughness: 0.3,
-  metalness: 0.1,
-  transparent: true,
-  opacity: 0.9,
-});
-const nucleoid = new THREE.Mesh(nucleoidGeo, nucleoidMat);
-nucleoid.scale.set(2.0, 0.8, 0.8);
-nucleoid.userData.partId = 'nucleoid';
-ecoliGroup.add(nucleoid);
-
-// Ribosomes (small yellow dots scattered)
-const riboGeo = new THREE.SphereGeometry(0.022, 8, 8);
-const riboMat = new THREE.MeshPhysicalMaterial({ color: 0xffd700, emissive: 0x443300, roughness: 0.2 });
-const riboGroup = new THREE.Group();
-riboGroup.userData.partId = 'ribosome';
-const rng = (min, max) => min + Math.random() * (max - min);
-for (let i = 0; i < 60; i++) {
-  const ribo = new THREE.Mesh(riboGeo, riboMat);
-  let x, y, z;
-  do {
-    x = rng(-0.7, 0.7);
-    y = rng(-0.15, 0.15);
-    z = rng(-0.15, 0.15);
-  } while (Math.sqrt(y*y + z*z) > 0.17);
-  ribo.position.set(x, y, z);
-  riboGroup.add(ribo);
-}
-ecoliGroup.add(riboGroup);
-
-// ── FLAGELLA (wavy tubes) ──
-function makeFlagellum(startX, startY, side) {
-  const points = [];
-  const turns = 8;
-  const len = 2.2;
-  for (let t = 0; t <= 1; t += 0.01) {
-    const x = startX - t * len * side;
-    const y = startY + Math.sin(t * turns * Math.PI * 2) * 0.18 * (1 - t * 0.4);
-    const z = Math.cos(t * turns * Math.PI * 2) * 0.12 * (1 - t * 0.4);
-    points.push(new THREE.Vector3(x, y, z));
+// Loading overlay helper
+function showLoader(msg) {
+  let el = document.getElementById('model-loader');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'model-loader';
+    el.style.cssText = `
+      position:absolute;inset:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;z-index:10;
+      background:rgba(3,6,13,0.75);font-family:'Space Mono',monospace;
+      font-size:0.7rem;color:#00dc96;letter-spacing:0.1em;gap:12px;
+    `;
+    el.innerHTML = `
+      <div id="loader-spinner" style="width:28px;height:28px;border:2px solid rgba(0,220,150,0.2);
+        border-top-color:#00dc96;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <span id="loader-msg"></span>`;
+    const style = document.createElement('style');
+    style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
+    document.querySelector('.viewer-section').appendChild(el);
   }
-  const curve = new THREE.CatmullRomCurve3(points);
-  const geo = new THREE.TubeGeometry(curve, 80, 0.008, 6, false);
-  const mat = new THREE.MeshPhysicalMaterial({
-    color: 0xff4d8a, emissive: 0x330011,
-    roughness: 0.3, metalness: 0.1,
-  });
-  return new THREE.Mesh(geo, mat);
+  document.getElementById('loader-msg').textContent = msg;
+  el.style.display = 'flex';
+}
+function hideLoader() {
+  const el = document.getElementById('model-loader');
+  if (el) el.style.display = 'none';
 }
 
-const flagellaGroup = new THREE.Group();
-flagellaGroup.userData.partId = 'flagella';
-// Multiple flagella from left end
-const flagPositions = [
-  [-0.85, 0.05, 1],  [-0.85, -0.07, 1],
-  [-0.85, 0.12, 1],  [-0.85, -0.02, 1],
-  [0.85, 0.05, -1],
-];
-flagPositions.forEach(([x, y, side]) => {
-  flagellaGroup.add(makeFlagellum(x, y, side));
-});
-ecoliGroup.add(flagellaGroup);
+// ──────────────────────────────────────────────
+// LOAD BACTERIA MODEL (FBX)
+// ──────────────────────────────────────────────
+let loadedBacteria = null;
 
-// ── PILI (thin spikes) ──
-const piliGroup = new THREE.Group();
-piliGroup.userData.partId = 'pili';
-const piliMat = new THREE.MeshPhysicalMaterial({ color: 0xf59e0b, roughness: 0.4 });
-for (let i = 0; i < 22; i++) {
-  const angle = (i / 22) * Math.PI * 2;
-  const posX = Math.cos(angle * 2.3) * rng(0.3, 0.7);
-  const posY = (CELL_R + 0.06) * Math.sin(angle * 0.9);
-  const posZ = (CELL_R + 0.06) * Math.cos(angle * 0.9);
-  const piliLen = rng(0.12, 0.25);
-  const geo = new THREE.CylinderGeometry(0.005, 0.003, piliLen, 5);
-  const mesh = new THREE.Mesh(geo, piliMat);
-  mesh.position.set(posX, posY, posZ);
-  // Orient outward
-  const dir = new THREE.Vector3(0, posY, posZ).normalize();
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
-  piliGroup.add(mesh);
-}
-ecoliGroup.add(piliGroup);
-
-// Store parts for highlighting
-const parts = {
-  nucleoid, ribosome: riboGroup,
-  outermembrane: outerMembrane, periplasm,
-  innermembrane: innerMem,
-  flagella: flagellaGroup, pili: piliGroup
-};
-
+// Highlight parts references (filled after load)
+const parts = {};
 const originalEmissives = {};
-Object.entries(parts).forEach(([k, obj]) => {
-  originalEmissives[k] = [];
-  obj.traverse(m => {
-    if (m.isMesh) {
-      originalEmissives[k].push(m.material.emissive ? m.material.emissive.getHex() : 0);
-    }
-  });
-});
 
 function highlightPart(partId) {
-  // Reset all
   Object.entries(parts).forEach(([k, obj]) => {
     let idx = 0;
     obj.traverse(m => {
-      if (m.isMesh && m.material.emissive) {
-        m.material.emissive.setHex(originalEmissives[k][idx] || 0);
+      if (m.isMesh && m.material && m.material.emissive) {
+        m.material.emissive.setHex(originalEmissives[k] && originalEmissives[k][idx] ? originalEmissives[k][idx] : 0);
         idx++;
       }
     });
@@ -908,90 +772,136 @@ function highlightPart(partId) {
 
   if (partId && parts[partId]) {
     parts[partId].traverse(m => {
-      if (m.isMesh && m.material.emissive) {
+      if (m.isMesh && m.material && m.material.emissive) {
         m.material.emissive.setHex(0x225522);
+        m.material.emissiveIntensity = 1.0;
       }
     });
     event && event.currentTarget && event.currentTarget.classList.add('active');
   }
 }
 
+showLoader('ЗАГРУЗКА МОДЕЛИ БАКТЕРИИ...');
+
+fbxLoader.load(
+  MODEL_BACTERIA,
+  (fbx) => {
+    // Scale & center
+    const box = new THREE.Box3().setFromObject(fbx);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const targetSize = 2.8;
+    const scale = targetSize / maxDim;
+    fbx.scale.setScalar(scale);
+
+    // Center
+    box.setFromObject(fbx);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    fbx.position.sub(center);
+
+    // Apply textures if available
+    const colorTex  = texLoader.load(TEX_BACTERIA_COLOR);
+    const normalTex = texLoader.load(TEX_BACTERIA_NORMAL);
+    colorTex.encoding = THREE.sRGBEncoding;
+
+    fbx.traverse(child => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.material = new THREE.MeshStandardMaterial({
+          map: colorTex,
+          normalMap: normalTex,
+          roughness: 0.6,
+          metalness: 0.1,
+          envMapIntensity: 1.0,
+        });
+        child.material.needsUpdate = true;
+      }
+    });
+
+    ecoliGroup.add(fbx);
+    loadedBacteria = fbx;
+
+    // Map parts for highlight (whole model as single part since FBX is one object)
+    parts['outermembrane'] = fbx;
+    parts['innermembrane'] = fbx;
+    parts['nucleoid'] = fbx;
+    parts['ribosome'] = fbx;
+    parts['periplasm'] = fbx;
+    parts['flagella'] = fbx;
+    parts['pili'] = fbx;
+
+    // Store original emissives
+    Object.keys(parts).forEach(k => {
+      originalEmissives[k] = [];
+      parts[k].traverse(m => {
+        if (m.isMesh && m.material && m.material.emissive) {
+          originalEmissives[k].push(m.material.emissive.getHex());
+        }
+      });
+    });
+
+    hideLoader();
+  },
+  (xhr) => {
+    const pct = Math.round(xhr.loaded / xhr.total * 100);
+    showLoader(`ЗАГРУЗКА БАКТЕРИИ... ${pct}%`);
+  },
+  (err) => {
+    console.error('FBX load error:', err);
+    showLoader('ОШИБКА ЗАГРУЗКИ МОДЕЛИ');
+    setTimeout(hideLoader, 3000);
+  }
+);
+
 // ──────────────────────────────────────────────
-// PETRI DISH / MEDIUM SCENE
+// LOAD PETRI DISH MODEL (GLB)
 // ──────────────────────────────────────────────
-// Dish (bottom)
-const dishGeo = new THREE.CylinderGeometry(1.8, 1.7, 0.15, 60);
-const dishMat = new THREE.MeshPhysicalMaterial({
-  color: 0x334455,
-  transparent: true, opacity: 0.7,
-  roughness: 0.1, metalness: 0.2,
-  transmission: 0.3,
-});
-const dish = new THREE.Mesh(dishGeo, dishMat);
-dish.position.y = -0.2;
-mediumGroup.add(dish);
+let loadedPetri = null;
 
-// Agar surface
-const agarGeo = new THREE.CylinderGeometry(1.72, 1.72, 0.08, 60);
-const agarMat = new THREE.MeshPhysicalMaterial({
-  color: 0xc8b878,
-  roughness: 0.6,
-  metalness: 0.0,
-  emissive: 0x221a00,
-});
-const agar = new THREE.Mesh(agarGeo, agarMat);
-agar.position.y = -0.08;
-mediumGroup.add(agar);
+gltfLoader.load(
+  MODEL_PETRI,
+  (gltf) => {
+    const model = gltf.scene;
 
-// Dish rim
-const rimGeo = new THREE.TorusGeometry(1.75, 0.05, 8, 60);
-const rimMat = new THREE.MeshPhysicalMaterial({ color: 0x88aacc, transparent: true, opacity: 0.5, roughness: 0.1 });
-const rim = new THREE.Mesh(rimGeo, rimMat);
-rim.rotation.x = Math.PI / 2;
-rim.position.y = -0.0;
-mediumGroup.add(rim);
+    // Scale & center
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const targetSize = 3.5;
+    const scale = targetSize / maxDim;
+    model.scale.setScalar(scale);
 
-// E. coli colonies (metallic green)
-const colonyPositions = [
-  [0,0], [0.5,0.3], [-0.4,0.5], [0.3,-0.6], [-0.6,-0.3],
-  [0.8,0.1], [-0.7,0.4], [0.1,0.8], [-0.2,-0.8], [0.6,-0.5],
-  [-0.9,0.1], [0.2,0.6], [-0.5,-0.6], [0.7,0.6], [-0.3,0.2],
-  [0.4,-0.2], [-0.1,0.4],
-];
+    box.setFromObject(model);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    model.position.sub(center);
 
-const colonyMat = new THREE.MeshPhysicalMaterial({
-  color: 0x003311,
-  emissive: 0x00ff44,
-  emissiveIntensity: 0.5,
-  roughness: 0.2,
-  metalness: 0.7,
-});
+    model.traverse(child => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
 
-colonyPositions.forEach(([cx, cz]) => {
-  const r = 0.05 + Math.random() * 0.12;
-  const h = 0.03 + Math.random() * 0.04;
-  const geo = new THREE.CylinderGeometry(r, r * 0.85, h, 20);
-  const m = new THREE.Mesh(geo, colonyMat);
-  m.position.set(cx, -0.04 + h/2, cz);
-  mediumGroup.add(m);
-
-  // Green metallic sheen on top (disk)
-  const topGeo = new THREE.CircleGeometry(r, 20);
-  const topMat = new THREE.MeshPhysicalMaterial({
-    color: 0x00ff88,
-    emissive: 0x00cc44,
-    emissiveIntensity: 0.7,
-    roughness: 0.0,
-    metalness: 1.0,
-  });
-  const top = new THREE.Mesh(topGeo, topMat);
-  top.rotation.x = -Math.PI / 2;
-  top.position.set(cx, -0.04 + h + 0.001, cz);
-  mediumGroup.add(top);
-});
-
-// Dish label - "Агар Эндо — E. coli" marker
-mediumGroup.rotation.x = -0.3;
+    mediumGroup.add(model);
+    loadedPetri = model;
+    mediumGroup.rotation.x = -0.3;
+    if (currentTab === 'medium') hideLoader();
+  },
+  (xhr) => {
+    if (xhr.total) {
+      const pct = Math.round(xhr.loaded / xhr.total * 100);
+      console.log(`Petri: ${pct}%`);
+    }
+  },
+  (err) => {
+    console.error('GLB load error:', err);
+  }
+);
 
 // ──────────────────────────────────────────────
 // LABELS
@@ -1018,7 +928,7 @@ labelData.forEach(ld => {
 });
 
 function updateLabels() {
-  if (!labelsVisible || !ecoliGroup.visible) {
+  if (!labelsVisible || !ecoliGroup.visible || ecoliGroup.children.length === 0) {
     Object.values(labelEls).forEach(({ el }) => el.style.opacity = '0');
     return;
   }
@@ -1107,12 +1017,16 @@ function switchTab(tab, btn) {
     mediumGroup.visible = true;
     targetZoom = 5.5;
     targetRotX = -0.5;
+    if (!loadedPetri) showLoader('ЗАГРУЗКА МОДЕЛИ ЧАШКИ ПЕТРИ...');
+    else hideLoader();
   } else {
     ecoliGroup.visible = true;
     mediumGroup.visible = false;
     targetZoom = 4.5;
     targetRotX = -0.2;
     targetRotY = 0;
+    if (ecoliGroup.children.length === 0) showLoader('ЗАГРУЗКА МОДЕЛИ БАКТЕРИИ...');
+    else hideLoader();
   }
 }
 
@@ -1142,16 +1056,7 @@ function animate() {
     ecoliGroup.rotation.y += 0.003;
   }
 
-  // Animate flagella wave
-  flagellaGroup.children.forEach((f, i) => {
-    f.rotation.z = Math.sin(t * 3 + i * 0.8) * 0.06;
-  });
-
-  // Pulsing outer membrane
-  const pulse = 1 + Math.sin(t * 2) * 0.01;
-  outerMembrane.scale.set(pulse, pulse, pulse);
-
-  // Animate colony lights
+  // Animate petri dish rotation
   if (mediumGroup.visible) {
     mediumGroup.rotation.y += 0.003;
   }
